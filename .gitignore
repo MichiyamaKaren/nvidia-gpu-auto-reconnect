@@ -1,0 +1,45 @@
+.claude/settings.local.json
+
+## .NET / C#
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+*.cache
+*.userosscache
+
+## NuGet
+*.nupkg
+**/packages/
+project.lock.json
+project.fragment.lock.json
+
+## Visual Studio
+.vs/
+*.sln.docuser
+*.rsuser
+
+## Rider
+.idea/
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+
+## Publish
+publish/
+
+## OS
+Thumbs.db
+desktop.ini
+.DS_Store
