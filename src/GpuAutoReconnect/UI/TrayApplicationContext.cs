@@ -54,7 +54,6 @@ public class TrayApplicationContext : ApplicationContext
         _contextMenu = new ContextMenuStrip();
         _contextMenu.Items.Add(_statusMenuItem);
         _contextMenu.Items.Add(new ToolStripSeparator());
-        _contextMenu.Items.Add("Settings...", null, OnSettings);
         _contextMenu.Items.Add(_pauseMenuItem);
         _contextMenu.Items.Add("View Log...", null, OnViewLog);
         _contextMenu.Items.Add(new ToolStripSeparator());
@@ -68,6 +67,7 @@ public class TrayApplicationContext : ApplicationContext
             ContextMenuStrip = _contextMenu,
             Visible = true
         };
+        _trayIcon.MouseClick += OnTrayIconClick;
 
         if (gpuId == null)
         {
@@ -137,6 +137,12 @@ public class TrayApplicationContext : ApplicationContext
         _trayIcon.BalloonTipText = text;
         _trayIcon.BalloonTipIcon = icon;
         _trayIcon.ShowBalloonTip(3000);
+    }
+
+    private void OnTrayIconClick(object? sender, MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left)
+            OnSettings(sender, e);
     }
 
     private void OnPauseResume(object? sender, EventArgs e)
