@@ -15,9 +15,9 @@ public class GpuMonitorService : IDisposable
     private bool _disposed;
 
     public bool IsPaused => _paused;
-    public PState? LastPState { get; private set; }
+    public GpuStatus? LastStatus { get; private set; }
 
-    public event Action<PState>? PStateChecked;
+    public event Action<GpuStatus>? GpuStatusChecked;
     public event Action? GpuResetStarted;
     public event Action<bool>? GpuResetCompleted;
     public event Action<string>? MonitorError;
@@ -58,17 +58,18 @@ public class GpuMonitorService : IDisposable
 
         try
         {
-            var pstate = await QueryCurrentPState();
-            LastPState = pstate;
-            PStateChecked?.Invoke(pstate);
+            var status = await QueryGpuStatus();
+            LastStatus = status;
+            GpuStatusChecked?.Invoke(status);
 
-            var isLowPerformance = (int)pstate >= (int)_settings.Current.PStateThreshold;
+            var isLow = IsLowPerformance(status);
             var isOnAC = PowerService.IsOnACPower();
 
-            if (isLowPerformance && isOnAC && _settings.Current.AutoResetEnabled)
+            if (isLow && isOnAC && _settings.Current.AutoResetEnabled)
             {
                 _consecutiveBadChecks++;
-                _log.Info($"Low performance detected: {pstate} (check {_consecutiveBadChecks}/{_settings.Current.ConsecutiveChecksBeforeReset})");
+                var reason = DescribeLowPerformance(status);
+                _log.Info($"Low performance detected: {reason} (check {_consecutiveBadChecks}/{_settings.Current.ConsecutiveChecksBeforeReset})");
 
                 if (_consecutiveBadChecks >= _settings.Current.ConsecutiveChecksBeforeReset)
                 {
@@ -79,7 +80,7 @@ public class GpuMonitorService : IDisposable
             else
             {
                 if (_consecutiveBadChecks > 0)
-                    _log.Info($"P-state recovered to {pstate}, counter reset.");
+                    _log.Info($"GPU recovered: {status.PState}, rated {status.RatedPower:F0}W. Counter reset.");
                 _consecutiveBadChecks = 0;
             }
         }
@@ -92,6 +93,35 @@ public class GpuMonitorService : IDisposable
         {
             RearmTimer();
         }
+    }
+
+    private bool IsLowPerformance(GpuStatus status)
+    {
+        var cfg = _settings.Current;
+        var pstateBad = (int)status.PState >= (int)cfg.PStateThreshold;
+        var powerBad = status.RatedPower > 0 && status.RatedPower < cfg.PowerThresholdWatts;
+
+        return cfg.ResetCondition switch
+        {
+            ResetCondition.PState => pstateBad,
+            ResetCondition.Power => powerBad,
+            ResetCondition.Either => pstateBad || powerBad,
+            _ => pstateBad
+        };
+    }
+
+    private string DescribeLowPerformance(GpuStatus status)
+    {
+        var cfg = _settings.Current;
+        var parts = new List<string>();
+
+        if ((int)status.PState >= (int)cfg.PStateThreshold)
+            parts.Add($"{status.PState} (threshold: {cfg.PStateThreshold})");
+
+        if (status.RatedPower > 0 && status.RatedPower < cfg.PowerThresholdWatts)
+            parts.Add($"rated power {status.RatedPower:F0}W < threshold {cfg.PowerThresholdWatts}W");
+
+        return string.Join(", ", parts);
     }
 
     private async Task PerformGpuReset()
@@ -142,13 +172,13 @@ public class GpuMonitorService : IDisposable
         }
     }
 
-    private async Task<PState> QueryCurrentPState()
+    private async Task<GpuStatus> QueryGpuStatus()
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo
         {
             FileName = "nvidia-smi",
-            Arguments = "--query-gpu=pstate --format=csv,noheader",
+            Arguments = "--query-gpu=pstate,power.default_limit --format=csv,noheader,nounits",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -172,15 +202,26 @@ public class GpuMonitorService : IDisposable
         if (process.ExitCode != 0)
             throw new InvalidOperationException($"nvidia-smi exited with code {process.ExitCode}");
 
-        var trimmed = output.Trim();
+        var line = output.Trim();
         // Handle multi-GPU: take the first line
-        if (trimmed.Contains('\n'))
-            trimmed = trimmed.Split('\n')[0].Trim();
+        if (line.Contains('\n'))
+            line = line.Split('\n')[0].Trim();
 
-        if (!Enum.TryParse<PState>(trimmed, true, out var pstate))
-            throw new FormatException($"Could not parse P-state from: '{trimmed}'");
+        // Format: "P8, 170.00"
+        var parts = line.Split(',', StringSplitOptions.TrimEntries);
+        if (parts.Length < 2)
+            throw new FormatException($"Unexpected nvidia-smi output: '{line}'");
 
-        return pstate;
+        if (!Enum.TryParse<PState>(parts[0], true, out var pstate))
+            throw new FormatException($"Could not parse P-state from: '{parts[0]}'");
+
+        double.TryParse(parts[1], System.Globalization.CultureInfo.InvariantCulture, out var ratedPower);
+
+        return new GpuStatus
+        {
+            PState = pstate,
+            RatedPower = ratedPower
+        };
     }
 
     private void RearmTimer()

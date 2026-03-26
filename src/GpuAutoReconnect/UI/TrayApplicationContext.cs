@@ -80,27 +80,26 @@ public class TrayApplicationContext : ApplicationContext
 
         // Start monitoring
         _monitor = new GpuMonitorService(_settings, _log, _deviceService);
-        _monitor.PStateChecked += OnPStateChecked;
+        _monitor.GpuStatusChecked += OnGpuStatusChecked;
         _monitor.GpuResetStarted += OnGpuResetStarted;
         _monitor.GpuResetCompleted += OnGpuResetCompleted;
         _monitor.MonitorError += OnMonitorError;
         _monitor.Start();
     }
 
-    private void OnPStateChecked(PState state)
+    private void OnGpuStatusChecked(GpuStatus status)
     {
         if (_trayIcon.ContextMenuStrip?.InvokeRequired == true)
-            _trayIcon.ContextMenuStrip.BeginInvoke(() => UpdateStatus(state));
+            _trayIcon.ContextMenuStrip.BeginInvoke(() => UpdateStatus(status));
         else
-            UpdateStatus(state);
+            UpdateStatus(status);
     }
 
-    private void UpdateStatus(PState state)
+    private void UpdateStatus(GpuStatus status)
     {
-        var threshold = _settings.Current.PStateThreshold;
         var power = PowerService.IsOnACPower() ? "AC" : "Battery";
-        _trayIcon.Text = $"GPU Auto Reconnect - {state} ({power})";
-        _statusMenuItem.Text = $"Current: {state} | Power: {power} | Threshold: {threshold}";
+        _trayIcon.Text = $"GPU Auto Reconnect - {status.PState} | {status.RatedPower:F0}W ({power})";
+        _statusMenuItem.Text = $"{status.PState} | Rated: {status.RatedPower:F0}W | {power}";
     }
 
     private void OnGpuResetStarted()

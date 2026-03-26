@@ -2,7 +2,9 @@ namespace GpuAutoReconnect.Models;
 
 public class AppSettings
 {
+    public ResetCondition ResetCondition { get; set; } = ResetCondition.PState;
     public PState PStateThreshold { get; set; } = PState.P8;
+    public int PowerThresholdWatts { get; set; } = 100;
     public int CheckIntervalSeconds { get; set; } = 30;
     public bool AutoResetEnabled { get; set; } = true;
     public int ConsecutiveChecksBeforeReset { get; set; } = 3;
