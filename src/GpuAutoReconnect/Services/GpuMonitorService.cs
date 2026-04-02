@@ -59,6 +59,7 @@ public class GpuMonitorService : IDisposable
         try
         {
             var status = await QueryGpuStatus();
+            _log.Debug($"GPU status detected: PState: {status.PState}, Power Capacity: {status.RatedPower} W.");
             LastStatus = status;
             GpuStatusChecked?.Invoke(status);
 
@@ -178,7 +179,7 @@ public class GpuMonitorService : IDisposable
         process.StartInfo = new ProcessStartInfo
         {
             FileName = "nvidia-smi",
-            Arguments = "--query-gpu=pstate,power.default_limit --format=csv,noheader,nounits",
+            Arguments = "--query-gpu=pstate,enforced.power.limit --format=csv,noheader,nounits",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -227,9 +228,10 @@ public class GpuMonitorService : IDisposable
     private void RearmTimer()
     {
         if (_disposed) return;
-        _timer?.Change(
-            TimeSpan.FromSeconds(_settings.Current.CheckIntervalSeconds),
-            Timeout.InfiniteTimeSpan);
+        var interval = _consecutiveBadChecks > 0
+            ? TimeSpan.FromSeconds(_settings.Current.DebounceIntervalSeconds)
+            : TimeSpan.FromSeconds(_settings.Current.CheckIntervalSeconds);
+        _timer?.Change(interval, Timeout.InfiniteTimeSpan);
     }
 
     public void Dispose()

@@ -11,6 +11,7 @@ public class SettingsForm : Form
     private ComboBox _pstateCombo = null!;
     private NumericUpDown _powerThresholdUpDown = null!;
     private NumericUpDown _intervalUpDown = null!;
+    private NumericUpDown _debounceIntervalUpDown = null!;
     private CheckBox _autoResetCheck = null!;
     private NumericUpDown _consecutiveUpDown = null!;
     private NumericUpDown _delayUpDown = null!;
@@ -35,14 +36,14 @@ public class SettingsForm : Form
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(420, 390);
+        ClientSize = new Size(420, 426);
 
         var table = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(12),
             ColumnCount = 2,
-            RowCount = 10,
+            RowCount = 11,
             AutoSize = true
         };
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
@@ -127,6 +128,23 @@ public class SettingsForm : Form
         table.Controls.Add(_intervalUpDown, 1, row);
         row++;
 
+        // Row 4: Debounce Interval
+        table.Controls.Add(new Label
+        {
+            Text = "Debounce Interval (seconds):",
+            Anchor = AnchorStyles.Left,
+            AutoSize = true
+        }, 0, row);
+
+        _debounceIntervalUpDown = new NumericUpDown
+        {
+            Minimum = 1,
+            Maximum = 60,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right
+        };
+        table.Controls.Add(_debounceIntervalUpDown, 1, row);
+        row++;
+
         // Row 4: Auto Reset
         _autoResetCheck = new CheckBox
         {
@@ -192,7 +210,7 @@ public class SettingsForm : Form
         {
             if (i == row - 1) // spacer row
                 table.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            else if (i == 4 || i == 7) // checkbox rows
+            else if (i == 5 || i == 8) // checkbox rows
                 table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
             else
                 table.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
@@ -254,6 +272,7 @@ public class SettingsForm : Form
         _pstateCombo.SelectedItem = s.PStateThreshold;
         _powerThresholdUpDown.Value = s.PowerThresholdWatts;
         _intervalUpDown.Value = s.CheckIntervalSeconds;
+        _debounceIntervalUpDown.Value = s.DebounceIntervalSeconds;
         _autoResetCheck.Checked = s.AutoResetEnabled;
         _consecutiveUpDown.Value = s.ConsecutiveChecksBeforeReset;
         _delayUpDown.Value = s.DeviceReEnableDelaySeconds;
@@ -269,6 +288,7 @@ public class SettingsForm : Form
         s.PStateThreshold = (PState)_pstateCombo.SelectedItem!;
         s.PowerThresholdWatts = (int)_powerThresholdUpDown.Value;
         s.CheckIntervalSeconds = (int)_intervalUpDown.Value;
+        s.DebounceIntervalSeconds = (int)_debounceIntervalUpDown.Value;
         s.AutoResetEnabled = _autoResetCheck.Checked;
         s.ConsecutiveChecksBeforeReset = (int)_consecutiveUpDown.Value;
         s.DeviceReEnableDelaySeconds = (int)_delayUpDown.Value;

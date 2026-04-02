@@ -23,6 +23,7 @@ public class LogService : IDisposable
 
     public string LogDirectory => LogDir;
 
+    public void Debug(string message) => Write("DEBUG", message);
     public void Info(string message) => Write("INFO", message);
     public void Warn(string message) => Write("WARN", message);
     public void Error(string message) => Write("ERROR", message);
